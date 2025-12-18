@@ -3,8 +3,6 @@
 # Alternative setup menggunakan Docker (lebih ringan dari VM)
 # ==============================================================================
 
-version: '3.8'
-
 services:
   # ============================================
   # VICTIM: Web Server yang Rentan
@@ -23,7 +21,7 @@ services:
       - ./evidence:/evidence
     networks:
       forensik_net:
-        ipv4_address: 172.20.0.10
+        ipv4_address: 172.28.0.10
     environment:
       - MYSQL_HOST=victim-db
       - MYSQL_USER=techmart_user
@@ -48,7 +46,7 @@ services:
       - ./docker/victim/init.sql:/docker-entrypoint-initdb.d/init.sql
     networks:
       forensik_net:
-        ipv4_address: 172.20.0.11
+        ipv4_address: 172.28.0.11
     environment:
       - MYSQL_ROOT_PASSWORD=rootpassword123
       - MYSQL_DATABASE=techmart_db
@@ -75,10 +73,10 @@ services:
       - attacker_loot:/loot
     networks:
       forensik_net:
-        ipv4_address: 172.20.0.20
+        ipv4_address: 172.28.0.20
     environment:
-      - TARGET_IP=172.20.0.10
-      - TARGET_DB=172.20.0.11
+      - TARGET_IP=172.28.0.10
+      - TARGET_DB=172.28.0.11
     stdin_open: true
     tty: true
     depends_on:
@@ -102,7 +100,7 @@ services:
       - ../06-tools:/tools
     networks:
       forensik_net:
-        ipv4_address: 172.20.0.30
+        ipv4_address: 172.28.0.30
     stdin_open: true
     tty: true
     restart: unless-stopped
