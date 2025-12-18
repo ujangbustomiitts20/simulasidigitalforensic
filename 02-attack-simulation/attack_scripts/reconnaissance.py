@@ -281,8 +281,20 @@ class Reconnaissance:
 def main():
     banner()
     
-    # Default target (Docker)
-    target = sys.argv[1] if len(sys.argv) > 1 else "http://localhost:8080"
+    import argparse
+    parser = argparse.ArgumentParser(description='Reconnaissance Tool for Forensic Simulation')
+    parser.add_argument('--target', '-t', type=str, default='172.28.0.10', 
+                        help='Target IP or URL (default: 172.28.0.10)')
+    parser.add_argument('--port', '-p', type=int, default=80,
+                        help='Target port (default: 80)')
+    parser.add_argument('target_positional', nargs='?', default=None,
+                        help='Target IP or URL (positional argument)')
+    
+    args = parser.parse_args()
+    
+    # Use positional argument if provided, otherwise use --target
+    target = args.target_positional if args.target_positional else args.target
+    target_port = args.port
     
     # Parse target URL or IP
     if target.startswith("http"):
@@ -294,11 +306,10 @@ def main():
     else:
         # Assume IP:port format
         if ":" in target:
-            target_ip, target_port = target.split(":")
-            target_port = int(target_port)
+            target_ip, port_str = target.split(":")
+            target_port = int(port_str)
         else:
             target_ip = target
-            target_port = 80
     
     print(f"{Colors.BOLD}Target: {target_ip}:{target_port}{Colors.RESET}\n")
     

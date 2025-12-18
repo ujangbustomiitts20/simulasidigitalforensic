@@ -323,8 +323,21 @@ class SQLInjectionSimulator:
 def main():
     banner()
     
-    # Default target
-    target = sys.argv[1] if len(sys.argv) > 1 else "http://localhost:8080"
+    import argparse
+    parser = argparse.ArgumentParser(description='SQL Injection Simulator for Forensic Simulation')
+    parser.add_argument('--target', '-t', type=str, default='http://172.28.0.10', 
+                        help='Target URL (default: http://172.28.0.10)')
+    parser.add_argument('target_positional', nargs='?', default=None,
+                        help='Target URL (positional argument)')
+    
+    args = parser.parse_args()
+    
+    # Use positional argument if provided, otherwise use --target
+    target = args.target_positional if args.target_positional else args.target
+    
+    # Ensure URL has scheme
+    if not target.startswith("http"):
+        target = f"http://{target}"
     
     print(f"{Colors.BOLD}Target: {target}{Colors.RESET}")
     print(f"{Colors.YELLOW}⚠️  This is for EDUCATIONAL PURPOSES ONLY!{Colors.RESET}\n")

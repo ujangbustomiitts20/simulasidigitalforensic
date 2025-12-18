@@ -111,22 +111,28 @@ docker exec -it forensik-attacker bash
 
 ### 2.3 Jalankan Reconnaissance (Pengintaian)
 ```bash
-# Di dalam container attacker, atau dari host:
+# Di dalam container attacker:
 cd /attack_scripts
+python3 reconnaissance.py 172.28.0.10
+
+# Atau dengan flag:
 python3 reconnaissance.py --target 172.28.0.10 --port 80
 
-# Atau jalankan dari host (luar container):
+# Dari host (luar container):
 cd 02-attack-simulation/attack_scripts
-python3 reconnaissance.py --target localhost --port 8888
+python3 reconnaissance.py localhost:8888
 ```
 
 ### 2.4 Jalankan SQL Injection Attack
 ```bash
 # Di dalam container attacker:
+python3 sql_injection.py http://172.28.0.10
+
+# Atau dengan flag:
 python3 sql_injection.py --target http://172.28.0.10
 
-# Atau dari host:
-python3 sql_injection.py --target http://localhost:8888
+# Dari host:
+python3 sql_injection.py http://localhost:8888
 ```
 
 ### 2.5 Jalankan Data Exfiltration
