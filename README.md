@@ -88,11 +88,15 @@ simulasiforensik/
 #### Metode 1: Docker (Recommended)
 ```bash
 cd simulasiforensik/01-setup-environment
-docker-compose up -d
+
+# Gunakan docker compose (versi baru) atau docker-compose (versi lama)
+docker compose up -d
+# atau jika menggunakan versi lama:
+# docker-compose up -d
 
 # Akses services:
 # - Victim Web: http://localhost:8080
-# - Kibana (ELK): http://localhost:5601
+# - MySQL: localhost:3307
 ```
 
 #### Metode 2: Vagrant

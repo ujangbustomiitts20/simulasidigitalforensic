@@ -16,7 +16,7 @@ services:
     container_name: forensik-victim-web
     hostname: victim-server
     ports:
-      - "8080:80"      # Web Server
+      - "8888:80"      # Web Server (port 8888 untuk hindari konflik)
       - "2222:22"      # SSH
     volumes:
       - victim_logs:/var/log
