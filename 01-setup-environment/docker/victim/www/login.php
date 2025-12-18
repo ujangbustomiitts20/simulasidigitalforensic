@@ -6,75 +6,99 @@
  */
 session_start();
 error_reporting(E_ALL);
+ini_set('display_errors', 1);
 
 $error = '';
 $debug_info = '';
 
 // Database connection
 function getDbConnection() {
-    $host = getenv('MYSQL_HOST') ?: 'localhost';
+    $host = getenv('MYSQL_HOST') ?: 'victim-db';
     $user = getenv('MYSQL_USER') ?: 'techmart_user';
     $pass = getenv('MYSQL_PASSWORD') ?: 'password123';
     $db = getenv('MYSQL_DATABASE') ?: 'techmart_db';
     
-    $conn = new mysqli($host, $user, $pass, $db);
+    // Try connection with retry
+    $maxRetries = 3;
+    $conn = null;
+    
+    for ($i = 0; $i < $maxRetries; $i++) {
+        $conn = @new mysqli($host, $user, $pass, $db);
+        if (!$conn->connect_error) {
+            break;
+        }
+        sleep(1);
+    }
+    
     if ($conn->connect_error) {
-        die("Connection failed: " . $conn->connect_error);
+        throw new Exception("Database connection failed: " . $conn->connect_error);
     }
     return $conn;
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $conn = getDbConnection();
-    
-    $username = $_POST['username'] ?? '';
-    $password = $_POST['password'] ?? '';
-    
-    // =====================================================
-    // VULNERABILITY: SQL INJECTION
-    // Query tidak menggunakan prepared statements
-    // Input tidak di-sanitasi
-    // =====================================================
-    $query = "SELECT * FROM users WHERE username='$username' AND password=MD5('$password')";
-    
-    // Log untuk forensik
-    $log_time = date('Y-m-d H:i:s');
-    $log_ip = $_SERVER['REMOTE_ADDR'] ?? 'unknown';
-    $log_ua = $_SERVER['HTTP_USER_AGENT'] ?? 'unknown';
-    
-    error_log("[$log_time] LOGIN ATTEMPT | IP: $log_ip | User: $username | Query: $query");
-    
-    // Store login attempt in database
-    $log_query = $conn->real_escape_string($query);
-    $conn->query("INSERT INTO login_attempts (username, ip_address, user_agent, success, query_used) VALUES ('$username', '$log_ip', '$log_ua', 0, '$log_query')");
-    
-    $debug_info = "Query: " . htmlspecialchars($query);
-    
-    $result = $conn->query($query);
-    
-    if ($result && $result->num_rows > 0) {
-        $user = $result->fetch_assoc();
-        $_SESSION['user'] = $user['username'];
-        $_SESSION['role'] = $user['role'];
-        $_SESSION['user_id'] = $user['id'];
-        $_SESSION['login_time'] = time();
+    try {
+        $conn = getDbConnection();
         
-        // Update login attempt to success
-        $conn->query("UPDATE login_attempts SET success=1 WHERE id=LAST_INSERT_ID()");
+        $username = $_POST['username'] ?? '';
+        $password = $_POST['password'] ?? '';
         
-        // Update last login
-        $conn->query("UPDATE users SET last_login=NOW() WHERE id=" . $user['id']);
+        // =====================================================
+        // VULNERABILITY: SQL INJECTION
+        // Query tidak menggunakan prepared statements
+        // Input tidak di-sanitasi
+        // =====================================================
+        $query = "SELECT * FROM users WHERE username='$username' AND password=MD5('$password')";
         
-        error_log("[$log_time] LOGIN SUCCESS | IP: $log_ip | User: " . $user['username']);
+        // Log untuk forensik
+        $log_time = date('Y-m-d H:i:s');
+        $log_ip = $_SERVER['REMOTE_ADDR'] ?? 'unknown';
+        $log_ua = $_SERVER['HTTP_USER_AGENT'] ?? 'unknown';
         
-        header('Location: dashboard.php');
-        exit;
-    } else {
-        $error = "Invalid username or password!";
-        error_log("[$log_time] LOGIN FAILED | IP: $log_ip | User: $username | Error: " . $conn->error);
+        error_log("[$log_time] LOGIN ATTEMPT | IP: $log_ip | User: $username | Query: $query");
+        
+        // Store login attempt in database (wrapped in try-catch)
+        try {
+            $log_query = $conn->real_escape_string($query);
+            $conn->query("INSERT INTO login_attempts (username, ip_address, user_agent, success, query_used) VALUES ('$username', '$log_ip', '$log_ua', 0, '$log_query')");
+        } catch (Exception $e) {
+            // Ignore logging errors
+        }
+        
+        $debug_info = "Query: " . htmlspecialchars($query);
+        
+        $result = $conn->query($query);
+        
+        if ($result && $result->num_rows > 0) {
+            $user = $result->fetch_assoc();
+            $_SESSION['user'] = $user['username'];
+            $_SESSION['role'] = $user['role'];
+            $_SESSION['user_id'] = $user['id'];
+            $_SESSION['login_time'] = time();
+            
+            // Update login attempt to success
+            @$conn->query("UPDATE login_attempts SET success=1 WHERE id=LAST_INSERT_ID()");
+            
+            // Update last login
+            @$conn->query("UPDATE users SET last_login=NOW() WHERE id=" . $user['id']);
+            
+            error_log("[$log_time] LOGIN SUCCESS | IP: $log_ip | User: " . $user['username']);
+            
+            header('Location: dashboard.php');
+            exit;
+        } else {
+            $error = "Invalid username or password!";
+            if ($conn->error) {
+                $error .= " (DB Error: " . htmlspecialchars($conn->error) . ")";
+            }
+            error_log("[$log_time] LOGIN FAILED | IP: $log_ip | User: $username | Error: " . $conn->error);
+        }
+        
+        $conn->close();
+    } catch (Exception $e) {
+        $error = "System Error: " . htmlspecialchars($e->getMessage());
+        error_log("LOGIN ERROR: " . $e->getMessage());
     }
-    
-    $conn->close();
 }
 ?>
 <!DOCTYPE html>
