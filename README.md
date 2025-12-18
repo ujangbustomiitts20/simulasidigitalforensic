@@ -138,15 +138,19 @@ python3 sql_injection.py http://localhost:8888
 ### 2.5 Jalankan Data Exfiltration
 ```bash
 # Di dalam container attacker:
-python3 data_exfiltration.py
+python3 data_exfiltration.py http://172.28.0.10
 
-# Atau dari host:
-python3 data_exfiltration.py
+# Atau dengan flag:
+python3 data_exfiltration.py --target http://172.28.0.10
 ```
 
 ### 2.6 Simulasi Backdoor Installation
 ```bash
-python3 backdoor_install.py
+# Di dalam container attacker:
+python3 backdoor_install.py http://172.28.0.10
+
+# Atau dengan flag:
+python3 backdoor_install.py --target http://172.28.0.10
 ```
 
 **⚠️ CATATAN:** Semua serangan akan meninggalkan jejak di log untuk analisis forensik.
