@@ -1,0 +1,152 @@
+# ==============================================================================
+# Docker Compose untuk Simulasi Forensik Digital
+# Alternative setup menggunakan Docker (lebih ringan dari VM)
+# ==============================================================================
+
+version: '3.8'
+
+services:
+  # ============================================
+  # VICTIM: Web Server yang Rentan
+  # ============================================
+  victim-web:
+    build:
+      context: ./docker/victim
+      dockerfile: Dockerfile
+    container_name: forensik-victim-web
+    hostname: victim-server
+    ports:
+      - "8080:80"      # Web Server
+      - "2222:22"      # SSH
+    volumes:
+      - victim_logs:/var/log
+      - ./evidence:/evidence
+    networks:
+      forensik_net:
+        ipv4_address: 172.20.0.10
+    environment:
+      - MYSQL_HOST=victim-db
+      - MYSQL_USER=techmart_user
+      - MYSQL_PASSWORD=password123
+      - MYSQL_DATABASE=techmart_db
+    depends_on:
+      victim-db:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # ============================================
+  # VICTIM: Database Server
+  # ============================================
+  victim-db:
+    image: mysql:8.0
+    container_name: forensik-victim-db
+    hostname: victim-database
+    ports:
+      - "3307:3306"
+    volumes:
+      - victim_mysql:/var/lib/mysql
+      - ./docker/victim/init.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      forensik_net:
+        ipv4_address: 172.20.0.11
+    environment:
+      - MYSQL_ROOT_PASSWORD=rootpassword123
+      - MYSQL_DATABASE=techmart_db
+      - MYSQL_USER=techmart_user
+      - MYSQL_PASSWORD=password123
+    restart: unless-stopped
+
+  # ============================================
+  # ATTACKER: Kali Linux Container
+  # ============================================
+  attacker:
+    build:
+      context: ./docker/attacker
+      dockerfile: Dockerfile
+    container_name: forensik-attacker
+    hostname: attacker-kali
+    volumes:
+      - ../02-attack-simulation/attack_scripts:/attack_scripts
+      - attacker_loot:/loot
+    networks:
+      forensik_net:
+        ipv4_address: 172.20.0.20
+    environment:
+      - TARGET_IP=172.20.0.10
+      - TARGET_DB=172.20.0.11
+    stdin_open: true
+    tty: true
+    restart: unless-stopped
+
+  # ============================================
+  # FORENSIC: Workstation untuk Analisis
+  # ============================================
+  forensic-workstation:
+    build:
+      context: ./docker/forensic
+      dockerfile: Dockerfile
+    container_name: forensik-workstation
+    hostname: forensic-ws
+    volumes:
+      - victim_logs:/victim_logs:ro
+      - ./evidence:/evidence
+      - ../03-forensic-investigation:/forensic
+    networks:
+      forensik_net:
+        ipv4_address: 172.20.0.30
+    stdin_open: true
+    tty: true
+    restart: unless-stopped
+
+  # ============================================
+  # MONITORING: ELK Stack untuk Log Analysis
+  # ============================================
+  elasticsearch:
+    image: elasticsearch:7.17.0
+    container_name: forensik-elasticsearch
+    environment:
+      - discovery.type=single-node
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+    volumes:
+      - elastic_data:/usr/share/elasticsearch/data
+    networks:
+      forensik_net:
+        ipv4_address: 172.20.0.40
+    ports:
+      - "9200:9200"
+    restart: unless-stopped
+
+  kibana:
+    image: kibana:7.17.0
+    container_name: forensik-kibana
+    ports:
+      - "5601:5601"
+    environment:
+      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+    networks:
+      forensik_net:
+        ipv4_address: 172.20.0.41
+    depends_on:
+      - elasticsearch
+    restart: unless-stopped
+
+# ============================================
+# NETWORKS
+# ============================================
+networks:
+  forensik_net:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/24
+          gateway: 172.20.0.1
+
+# ============================================
+# VOLUMES
+# ============================================
+volumes:
+  victim_logs:
+  victim_www:
+  victim_mysql:
+  attacker_loot:
+  elastic_data:

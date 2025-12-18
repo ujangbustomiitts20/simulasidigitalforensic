@@ -1,0 +1,95 @@
+# -*- mode: ruby -*-
+# vi: set ft=ruby :
+#
+# Vagrantfile untuk Simulasi Forensik Digital
+# Membuat 2 VM: Victim (Web Server) dan Attacker (Kali Linux)
+#
+
+Vagrant.configure("2") do |config|
+  
+  # ============================================
+  # VM 1: VICTIM (Target Web Server)
+  # ============================================
+  config.vm.define "victim" do |victim|
+    victim.vm.box = "ubuntu/focal64"
+    victim.vm.hostname = "victim-server"
+    
+    # Network Configuration
+    victim.vm.network "private_network", ip: "192.168.56.10"
+    victim.vm.network "forwarded_port", guest: 80, host: 8080    # Web Server
+    victim.vm.network "forwarded_port", guest: 3306, host: 3307  # MySQL
+    victim.vm.network "forwarded_port", guest: 22, host: 2222    # SSH
+    
+    # VM Resources
+    victim.vm.provider "virtualbox" do |vb|
+      vb.name = "ForensikLab-Victim"
+      vb.memory = "2048"
+      vb.cpus = 2
+      vb.gui = false
+    end
+    
+    # Provisioning - Setup Victim Server
+    victim.vm.provision "shell", path: "setup-victim.sh"
+    
+    # Synced folder untuk evidence collection
+    victim.vm.synced_folder "../03-forensic-investigation/evidence_collection", 
+                            "/home/vagrant/evidence",
+                            create: true
+  end
+  
+  # ============================================
+  # VM 2: ATTACKER (Kali Linux)
+  # ============================================
+  config.vm.define "attacker" do |attacker|
+    attacker.vm.box = "kalilinux/rolling"
+    attacker.vm.hostname = "attacker-kali"
+    
+    # Network Configuration
+    attacker.vm.network "private_network", ip: "192.168.56.20"
+    
+    # VM Resources
+    attacker.vm.provider "virtualbox" do |vb|
+      vb.name = "ForensikLab-Attacker"
+      vb.memory = "4096"
+      vb.cpus = 2
+      vb.gui = true  # Enable GUI untuk Kali
+    end
+    
+    # Provisioning - Setup Attacker Tools
+    attacker.vm.provision "shell", path: "setup-attacker.sh"
+    
+    # Synced folder untuk attack scripts
+    attacker.vm.synced_folder "../02-attack-simulation/attack_scripts", 
+                              "/home/vagrant/attack_scripts",
+                              create: true
+  end
+  
+  # ============================================
+  # VM 3: FORENSIC WORKSTATION (Optional)
+  # ============================================
+  config.vm.define "forensic", autostart: false do |forensic|
+    forensic.vm.box = "ubuntu/focal64"
+    forensic.vm.hostname = "forensic-workstation"
+    
+    # Network Configuration
+    forensic.vm.network "private_network", ip: "192.168.56.30"
+    
+    # VM Resources
+    forensic.vm.provider "virtualbox" do |vb|
+      vb.name = "ForensikLab-Workstation"
+      vb.memory = "4096"
+      vb.cpus = 2
+      vb.gui = false
+    end
+    
+    # Provisioning - Setup Forensic Tools
+    forensic.vm.provision "shell", inline: <<-SHELL
+      apt-get update
+      apt-get install -y autopsy sleuthkit foremost dc3dd hashdeep
+      apt-get install -y volatility3 wireshark tshark
+      apt-get install -y python3-pip
+      pip3 install volatility3 yara-python
+    SHELL
+  end
+
+end
