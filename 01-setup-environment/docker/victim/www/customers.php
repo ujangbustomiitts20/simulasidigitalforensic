@@ -5,6 +5,8 @@
  * FOR EDUCATIONAL PURPOSES ONLY
  */
 session_start();
+error_reporting(E_ALL);
+ini_set('display_errors', 1);
 
 if (!isset($_SESSION['user'])) {
     header('Location: login.php');
@@ -13,14 +15,14 @@ if (!isset($_SESSION['user'])) {
 
 // Database connection
 function getDbConnection() {
-    $host = getenv('MYSQL_HOST') ?: 'localhost';
+    $host = getenv('MYSQL_HOST') ?: 'victim-db';
     $user = getenv('MYSQL_USER') ?: 'techmart_user';
     $pass = getenv('MYSQL_PASSWORD') ?: 'password123';
     $db = getenv('MYSQL_DATABASE') ?: 'techmart_db';
     
-    $conn = new mysqli($host, $user, $pass, $db);
+    $conn = @new mysqli($host, $user, $pass, $db);
     if ($conn->connect_error) {
-        die("Connection failed: " . $conn->connect_error);
+        return null;
     }
     return $conn;
 }
@@ -43,19 +45,24 @@ error_log("[$log_time] CUSTOMERS VIEW | IP: $log_ip | Order: $order | Dir: $dir"
 // VULNERABLE QUERY - order by injection possible
 $query = "SELECT id, first_name, last_name, email, phone, address, created_at FROM customers ORDER BY $order $dir LIMIT $limit OFFSET $offset";
 
-$result = $conn->query($query);
-if ($result) {
-    while ($row = $result->fetch_assoc()) {
-        $customers[] = $row;
+$total = 0;
+$total_pages = 1;
+
+if ($conn) {
+    $result = $conn->query($query);
+    if ($result) {
+        while ($row = $result->fetch_assoc()) {
+            $customers[] = $row;
+        }
     }
+
+    // Get total count
+    $count_result = $conn->query("SELECT COUNT(*) as total FROM customers");
+    $total = $count_result ? $count_result->fetch_assoc()['total'] : 0;
+    $total_pages = ceil($total / $limit);
+
+    $conn->close();
 }
-
-// Get total count
-$count_result = $conn->query("SELECT COUNT(*) as total FROM customers");
-$total = $count_result ? $count_result->fetch_assoc()['total'] : 0;
-$total_pages = ceil($total / $limit);
-
-$conn->close();
 ?>
 <!DOCTYPE html>
 <html lang="en">

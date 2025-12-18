@@ -5,17 +5,19 @@
  * FOR EDUCATIONAL PURPOSES ONLY
  */
 session_start();
+error_reporting(E_ALL);
+ini_set('display_errors', 1);
 
 // Database connection
 function getDbConnection() {
-    $host = getenv('MYSQL_HOST') ?: 'localhost';
+    $host = getenv('MYSQL_HOST') ?: 'victim-db';
     $user = getenv('MYSQL_USER') ?: 'techmart_user';
     $pass = getenv('MYSQL_PASSWORD') ?: 'password123';
     $db = getenv('MYSQL_DATABASE') ?: 'techmart_db';
     
-    $conn = new mysqli($host, $user, $pass, $db);
+    $conn = @new mysqli($host, $user, $pass, $db);
     if ($conn->connect_error) {
-        die("Connection failed: " . $conn->connect_error);
+        return null;
     }
     return $conn;
 }
@@ -34,30 +36,32 @@ if (isset($_GET['q']) && !empty($_GET['q'])) {
     $log_ip = $_SERVER['REMOTE_ADDR'] ?? 'unknown';
     error_log("[$log_time] SEARCH | IP: $log_ip | Query: $search_query");
     
-    // =====================================================
-    // VULNERABILITY: SQL INJECTION
-    // Query tidak menggunakan prepared statements
-    // Input tidak di-sanitasi
-    // =====================================================
-    $query = "SELECT id, first_name, last_name, email, phone, address FROM customers WHERE first_name LIKE '%$search_query%' OR last_name LIKE '%$search_query%' OR email LIKE '%$search_query%'";
+    if ($conn) {
+        // =====================================================
+        // VULNERABILITY: SQL INJECTION
+        // Query tidak menggunakan prepared statements
+        // Input tidak di-sanitasi
+        // =====================================================
+        $query = "SELECT id, first_name, last_name, email, phone, address FROM customers WHERE first_name LIKE '%$search_query%' OR last_name LIKE '%$search_query%' OR email LIKE '%$search_query%'";
+        
+        $debug_info = "Query: " . htmlspecialchars($query);
+        
+        // Log query untuk audit
+        @$conn->query("INSERT INTO audit_log (action, details, ip_address, user_agent) VALUES ('SEARCH', '" . $conn->real_escape_string($query) . "', '$log_ip', '" . ($_SERVER['HTTP_USER_AGENT'] ?? '') . "')");
+        
+        $result = $conn->query($query);
     
-    $debug_info = "Query: " . htmlspecialchars($query);
-    
-    // Log query untuk audit
-    $conn->query("INSERT INTO audit_log (action, details, ip_address, user_agent) VALUES ('SEARCH', '" . $conn->real_escape_string($query) . "', '$log_ip', '" . ($_SERVER['HTTP_USER_AGENT'] ?? '') . "')");
-    
-    $result = $conn->query($query);
-    
-    if ($result) {
-        while ($row = $result->fetch_assoc()) {
-            $results[] = $row;
+        if ($result) {
+            while ($row = $result->fetch_assoc()) {
+                $results[] = $row;
+            }
+        } else {
+            $error = "Database error: " . $conn->error;
+            error_log("[$log_time] SEARCH ERROR | IP: $log_ip | Error: " . $conn->error);
         }
-    } else {
-        $error = "Database error: " . $conn->error;
-        error_log("[$log_time] SEARCH ERROR | IP: $log_ip | Error: " . $conn->error);
+        
+        $conn->close();
     }
-    
-    $conn->close();
 }
 ?>
 <!DOCTYPE html>

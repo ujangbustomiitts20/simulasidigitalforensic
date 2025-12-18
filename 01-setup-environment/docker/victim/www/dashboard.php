@@ -4,6 +4,8 @@
  * FOR EDUCATIONAL PURPOSES ONLY
  */
 session_start();
+error_reporting(E_ALL);
+ini_set('display_errors', 1);
 
 // Check if user is logged in
 if (!isset($_SESSION['user'])) {
@@ -13,14 +15,14 @@ if (!isset($_SESSION['user'])) {
 
 // Database connection
 function getDbConnection() {
-    $host = getenv('MYSQL_HOST') ?: 'localhost';
+    $host = getenv('MYSQL_HOST') ?: 'victim-db';
     $user = getenv('MYSQL_USER') ?: 'techmart_user';
     $pass = getenv('MYSQL_PASSWORD') ?: 'password123';
     $db = getenv('MYSQL_DATABASE') ?: 'techmart_db';
     
-    $conn = new mysqli($host, $user, $pass, $db);
+    $conn = @new mysqli($host, $user, $pass, $db);
     if ($conn->connect_error) {
-        die("Connection failed: " . $conn->connect_error);
+        return null;
     }
     return $conn;
 }
@@ -34,16 +36,18 @@ $stats = [
     'products' => 0
 ];
 
-$result = $conn->query("SELECT COUNT(*) as count FROM customers");
-if ($result) $stats['customers'] = $result->fetch_assoc()['count'];
+if ($conn) {
+    $result = $conn->query("SELECT COUNT(*) as count FROM customers");
+    if ($result) $stats['customers'] = $result->fetch_assoc()['count'];
 
-$result = $conn->query("SELECT COUNT(*) as count FROM orders");
-if ($result) $stats['orders'] = $result->fetch_assoc()['count'];
+    $result = $conn->query("SELECT COUNT(*) as count FROM orders");
+    if ($result) $stats['orders'] = $result->fetch_assoc()['count'];
 
-$result = $conn->query("SELECT COUNT(*) as count FROM products");
-if ($result) $stats['products'] = $result->fetch_assoc()['count'];
+    $result = $conn->query("SELECT COUNT(*) as count FROM products");
+    if ($result) $stats['products'] = $result->fetch_assoc()['count'];
 
-$conn->close();
+    $conn->close();
+}
 ?>
 <!DOCTYPE html>
 <html lang="en">
