@@ -281,9 +281,24 @@ class Reconnaissance:
 def main():
     banner()
     
-    # Default target (Docker/Vagrant)
-    target_ip = sys.argv[1] if len(sys.argv) > 1 else "172.20.0.10"
-    target_port = int(sys.argv[2]) if len(sys.argv) > 2 else 80
+    # Default target (Docker)
+    target = sys.argv[1] if len(sys.argv) > 1 else "http://localhost:8080"
+    
+    # Parse target URL or IP
+    if target.startswith("http"):
+        # Parse URL
+        from urllib.parse import urlparse
+        parsed = urlparse(target)
+        target_ip = parsed.hostname or "localhost"
+        target_port = parsed.port or (443 if parsed.scheme == "https" else 80)
+    else:
+        # Assume IP:port format
+        if ":" in target:
+            target_ip, target_port = target.split(":")
+            target_port = int(target_port)
+        else:
+            target_ip = target
+            target_port = 80
     
     print(f"{Colors.BOLD}Target: {target_ip}:{target_port}{Colors.RESET}\n")
     

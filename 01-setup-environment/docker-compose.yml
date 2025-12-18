@@ -54,10 +54,15 @@ services:
       - MYSQL_DATABASE=techmart_db
       - MYSQL_USER=techmart_user
       - MYSQL_PASSWORD=password123
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-prootpassword123"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
     restart: unless-stopped
 
   # ============================================
-  # ATTACKER: Kali Linux Container
+  # ATTACKER: Container untuk simulasi serangan
   # ============================================
   attacker:
     build:
@@ -76,6 +81,8 @@ services:
       - TARGET_DB=172.20.0.11
     stdin_open: true
     tty: true
+    depends_on:
+      - victim-web
     restart: unless-stopped
 
   # ============================================
@@ -91,43 +98,13 @@ services:
       - victim_logs:/victim_logs:ro
       - ./evidence:/evidence
       - ../03-forensic-investigation:/forensic
+      - ../04-risk-management:/risk-management
+      - ../06-tools:/tools
     networks:
       forensik_net:
         ipv4_address: 172.20.0.30
     stdin_open: true
     tty: true
-    restart: unless-stopped
-
-  # ============================================
-  # MONITORING: ELK Stack untuk Log Analysis
-  # ============================================
-  elasticsearch:
-    image: elasticsearch:7.17.0
-    container_name: forensik-elasticsearch
-    environment:
-      - discovery.type=single-node
-      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
-    volumes:
-      - elastic_data:/usr/share/elasticsearch/data
-    networks:
-      forensik_net:
-        ipv4_address: 172.20.0.40
-    ports:
-      - "9200:9200"
-    restart: unless-stopped
-
-  kibana:
-    image: kibana:7.17.0
-    container_name: forensik-kibana
-    ports:
-      - "5601:5601"
-    environment:
-      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
-    networks:
-      forensik_net:
-        ipv4_address: 172.20.0.41
-    depends_on:
-      - elasticsearch
     restart: unless-stopped
 
 # ============================================
@@ -146,7 +123,5 @@ networks:
 # ============================================
 volumes:
   victim_logs:
-  victim_www:
   victim_mysql:
   attacker_loot:
-  elastic_data:

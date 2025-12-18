@@ -324,7 +324,7 @@ def main():
     banner()
     
     # Default target
-    target = sys.argv[1] if len(sys.argv) > 1 else "http://172.20.0.10"
+    target = sys.argv[1] if len(sys.argv) > 1 else "http://localhost:8080"
     
     print(f"{Colors.BOLD}Target: {target}{Colors.RESET}")
     print(f"{Colors.YELLOW}⚠️  This is for EDUCATIONAL PURPOSES ONLY!{Colors.RESET}\n")
@@ -341,7 +341,7 @@ def main():
    - Login attempts in audit table
 
 {Colors.CYAN}Next Steps for Forensic Analysis:{Colors.RESET}
-1. Examine /var/log/apache2/techmart-access.log
+1. Examine /var/log/apache2/access.log (or Docker logs)
 2. Check MySQL general query log
 3. Review login_attempts table
 4. Analyze audit_log table
