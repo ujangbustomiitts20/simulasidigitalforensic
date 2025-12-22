@@ -21,11 +21,12 @@ CREATE TABLE IF NOT EXISTS users (
     is_active BOOLEAN DEFAULT TRUE
 );
 
--- Insert default users
+-- Insert default users (PASSWORD DISIMPAN TANPA HASH - VULNERABLE!)
+-- Ini sengaja untuk demonstrasi SQL Injection
 INSERT INTO users (username, password, email, role) VALUES 
-('admin', MD5('admin123'), 'admin@techmart.co.id', 'admin'),
-('staff1', MD5('staff123'), 'staff1@techmart.co.id', 'staff'),
-('staff2', MD5('staff456'), 'staff2@techmart.co.id', 'staff');
+('admin', 'admin123', 'admin@techmart.co.id', 'admin'),
+('staff1', 'staff123', 'staff1@techmart.co.id', 'staff'),
+('staff2', 'staff456', 'staff2@techmart.co.id', 'staff');
 
 -- ============================================
 -- TABLE: customers

@@ -44,11 +44,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $password = $_POST['password'] ?? '';
         
         // =====================================================
-        // VULNERABILITY: SQL INJECTION
+        // VULNERABILITY: SQL INJECTION (SANGAT VULNERABLE!)
         // Query tidak menggunakan prepared statements
         // Input tidak di-sanitasi
+        // Attacker bisa bypass dengan: admin'-- atau ' OR '1'='1
         // =====================================================
-        $query = "SELECT * FROM users WHERE username='$username' AND password=MD5('$password')";
+        $query = "SELECT * FROM users WHERE username='$username' AND password='$password'";
         
         // Log untuk forensik
         $log_time = date('Y-m-d H:i:s');
