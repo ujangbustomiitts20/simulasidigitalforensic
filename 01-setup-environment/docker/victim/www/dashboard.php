@@ -120,6 +120,14 @@ if ($conn) {
                 <div class="icon">🔍</div>
                 <div>Search Customers</div>
             </a>
+            <a href="export.php" class="menu-item">
+                <div class="icon">📊</div>
+                <div>Export Data</div>
+            </a>
+            <a href="upload.php" class="menu-item">
+                <div class="icon">📤</div>
+                <div>Upload Files</div>
+            </a>
         </div>
     </div>
 </body>

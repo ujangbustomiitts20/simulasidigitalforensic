@@ -118,7 +118,12 @@ INSERT INTO products (name, description, price, stock, category) VALUES
 ('Laptop Ultra', '15.6" laptop with Intel i7', 12999000, 50, 'Electronics'),
 ('Wireless Headphone', 'Noise cancelling bluetooth headphone', 899000, 200, 'Electronics'),
 ('Smart Watch', 'Fitness tracker with heart rate monitor', 1499000, 150, 'Electronics'),
-('Tablet Pro', '10" tablet with stylus support', 4999000, 75, 'Electronics');
+('Tablet Pro', '10" tablet with stylus support', 4999000, 75, 'Electronics'),
+('Gaming Mouse', 'RGB gaming mouse 16000 DPI', 599000, 300, 'Accessories'),
+('Mechanical Keyboard', 'RGB mechanical keyboard', 1299000, 120, 'Accessories'),
+('USB Hub', '7-port USB 3.0 Hub', 249000, 400, 'Accessories'),
+('Power Bank 20000mAh', 'Fast charging power bank', 399000, 250, 'Accessories'),
+('Webcam HD', '1080p webcam with microphone', 499000, 180, 'Electronics');
 
 -- ============================================
 -- TABLE: orders
@@ -134,6 +139,30 @@ CREATE TABLE IF NOT EXISTS orders (
     FOREIGN KEY (customer_id) REFERENCES customers(id),
     FOREIGN KEY (product_id) REFERENCES products(id)
 );
+
+-- Insert sample orders
+INSERT INTO orders (customer_id, product_id, quantity, total_price, status) VALUES
+(1, 1, 1, 5999000, 'delivered'),
+(1, 3, 2, 1798000, 'delivered'),
+(2, 2, 1, 12999000, 'shipped'),
+(3, 4, 1, 1499000, 'processing'),
+(4, 1, 2, 11998000, 'delivered'),
+(5, 5, 1, 4999000, 'pending'),
+(6, 3, 1, 899000, 'shipped'),
+(7, 6, 2, 1198000, 'delivered'),
+(8, 7, 1, 1299000, 'processing'),
+(9, 2, 1, 12999000, 'delivered'),
+(10, 8, 3, 747000, 'shipped'),
+(11, 9, 2, 798000, 'pending'),
+(12, 10, 1, 499000, 'delivered'),
+(13, 1, 1, 5999000, 'shipped'),
+(14, 4, 2, 2998000, 'delivered'),
+(15, 5, 1, 4999000, 'processing'),
+(16, 6, 1, 599000, 'delivered'),
+(17, 7, 1, 1299000, 'shipped'),
+(18, 3, 3, 2697000, 'delivered'),
+(19, 2, 1, 12999000, 'pending'),
+(20, 9, 1, 399000, 'delivered');
 
 -- ============================================
 -- TABLE: audit_log (untuk forensik)
